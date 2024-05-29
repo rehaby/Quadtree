@@ -63,6 +63,6 @@
         "src/quadtree.zig",
         "src/box.zig",
         "src/vector2.zig",
-        "src/test/zig",
+        "src/test.zig",
     },
 }
