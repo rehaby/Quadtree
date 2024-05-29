@@ -2,7 +2,7 @@ const std = @import("std");
 const v = @import("vector2.zig");
 const b = @import("box.zig");
 
-fn Quadtree(comptime T: type, comptime unitType: type) type {
+pub fn Quadtree(comptime T: type, comptime unitType: type) type {
     return struct {
         const Self = @This();
         comptime Threshold: usize = 16,
@@ -14,7 +14,6 @@ fn Quadtree(comptime T: type, comptime unitType: type) type {
         mRoot: Node,
         mGetBox: *const fn (T) b.Box(unitType),
         mEqual: *const fn (T, T) bool,
-        //mEqual: Equal,
 
         pub const ValuePair = struct { T, T };
 
