@@ -15,23 +15,23 @@ pub fn Box(comptime T: type) type {
             return Box(T){ .left = position.x, .top = position.y, .width = size.x, .height = size.y };
         }
 
-        pub fn getRight(self: @This()) T {
+        pub fn getRight(self: Box(T)) T {
             return self.left + self.width;
         }
 
-        pub fn getBottom(self: @This()) T {
+        pub fn getBottom(self: Box(T)) T {
             return self.top + self.height;
         }
 
-        pub fn getTopLeft(self: @This()) v.Vector2(T) {
+        pub fn getTopLeft(self: Box(T)) v.Vector2(T) {
             return v.Vector2(T){ .x = self.left, .y = self.top };
         }
 
-        pub fn getCenter(self: @This()) v.Vector2(T) {
+        pub fn getCenter(self: Box(T)) v.Vector2(T) {
             return v.Vector2(T){ .x = (self.left + self.width) / 2, .y = (self.top + self.height) / 2 };
         }
 
-        pub fn getSize(self: @This()) v.Vector2(T) {
+        pub fn getSize(self: Box(T)) v.Vector2(T) {
             return v.Vector2(T){ .x = self.width, .y = self.height };
         }
 

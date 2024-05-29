@@ -2,7 +2,7 @@ const std = @import("std");
 const v = @import("vector2.zig");
 const b = @import("box.zig");
 
-pub fn Quadtree(comptime T: type, comptime unitType: type) type {
+pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
     return struct {
         const Self = @This();
         comptime Threshold: usize = 16,
@@ -10,9 +10,9 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
 
         allocator: std.mem.Allocator,
 
-        mBox: b.Box(unitType),
+        mBox: b.Box(UnitType),
         mRoot: Node,
-        mGetBox: *const fn (T) b.Box(unitType),
+        mGetBox: *const fn (T) b.Box(UnitType),
         mEqual: *const fn (T, T) bool,
 
         pub const ValuePair = struct { T, T };
@@ -32,7 +32,9 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
             }
         };
 
-        pub fn init(allocator: std.mem.Allocator, box: b.Box(unitType), GetBox: *const fn (T) b.Box(unitType), Equal: *const fn (T, T) bool) Self {
+        const Quadrant = enum(i8) { TopRight = 0, TopLeft = 1, BottomRight = 2, BottomLeft = 3, None = -1 };
+
+        pub fn init(allocator: std.mem.Allocator, box: b.Box(UnitType), GetBox: *const fn (T) b.Box(UnitType), Equal: *const fn (T, T) bool) Self {
             return Self{ .allocator = allocator, .mBox = box, .mGetBox = GetBox, .mEqual = Equal, .mRoot = Node{ .values = std.ArrayListUnmanaged(T){} } };
         }
 
@@ -48,7 +50,7 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
             _ = try self.remove_value(&self.mRoot, self.mBox, value);
         }
 
-        pub fn query(self: Self, box: b.Box(unitType)) !std.ArrayList(T) {
+        pub fn query(self: Self, box: b.Box(UnitType)) !std.ArrayList(T) {
             var values = std.ArrayList(T).init(self.allocator);
             try self.query_box(self.mRoot, self.mBox, box, &values);
             return values;
@@ -66,57 +68,62 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
         }
 
         //Box<Float> computeBox(const Box<Float>& box, int i) const
-        fn computeBox(box: b.Box(unitType), i: i32) b.Box(unitType) {
+        fn computeBox(box: b.Box(UnitType), i: Quadrant) b.Box(UnitType) {
+            std.debug.assert(@intFromEnum(Quadrant.TopRight) == 0);
+            std.debug.assert(@intFromEnum(Quadrant.TopLeft) == 1);
+            std.debug.assert(@intFromEnum(Quadrant.BottomRight) == 2);
+            std.debug.assert(@intFromEnum(Quadrant.BottomLeft) == 3);
+
             const origin = box.getTopLeft();
             const childSize = box.getSize().div(2.0);
             return switch (i) {
                 // North West
-                0 => b.Box(unitType).fromVec(origin, childSize),
+                Quadrant.TopRight => b.Box(UnitType).fromVec(origin, childSize),
                 // Norst East
-                1 => b.Box(unitType).fromVec(v.Vector2(unitType){ .x = origin.x + childSize.x, .y = origin.y }, childSize),
+                Quadrant.TopLeft => b.Box(UnitType).fromVec(v.Vector2(UnitType){ .x = origin.x + childSize.x, .y = origin.y }, childSize),
                 // South West
-                2 => b.Box(unitType).fromVec(v.Vector2(unitType){ .x = origin.x, .y = origin.y + childSize.y }, childSize),
+                Quadrant.BottomRight => b.Box(UnitType).fromVec(v.Vector2(UnitType){ .x = origin.x, .y = origin.y + childSize.y }, childSize),
                 // South East
-                3 => b.Box(unitType).fromVec(origin.add(childSize), childSize),
+                Quadrant.BottomLeft => b.Box(UnitType).fromVec(origin.add(childSize), childSize),
                 else => unreachable,
             };
         }
 
         //int getQuadrant(const Box<Float>& nodeBox, const Box<Float>& valueBox) const
-        fn getQuadrant(nodeBox: b.Box(unitType), valueBox: b.Box(unitType)) i32 {
+        fn getQuadrant(nodeBox: b.Box(UnitType), valueBox: b.Box(UnitType)) Quadrant {
             const center = nodeBox.getCenter();
             // West
             if (valueBox.getRight() < center.x) {
                 // North West
                 if (valueBox.getBottom() < center.y) {
-                    return 0;
+                    return Quadrant.TopRight;
                 }
                 // South West
                 else if (valueBox.top >= center.y) {
-                    return 2;
+                    return Quadrant.BottomRight;
                 }
                 // Not contained in any quadrant
-                else return -1;
+                else return Quadrant.None;
             }
             // East
             else if (valueBox.left >= center.x) {
                 // North East
                 if (valueBox.getBottom() < center.y) {
-                    return 1;
+                    return Quadrant.TopLeft;
                 }
                 // South East
                 else if (valueBox.top >= center.y) {
-                    return 3;
+                    return Quadrant.BottomLeft;
                 }
                 // Not contained in any quadrant
-                else return -1;
+                else return Quadrant.None;
             }
             // Not contained in any quadrant
-            else return -1;
+            else return Quadrant.None;
         }
 
         //void add(Node* node, std::size_t depth, const Box<Float>& box, const T& value)
-        fn add_value(self: Self, node: *Node, depth: usize, box: b.Box(unitType), value: T) !void {
+        fn add_value(self: Self, node: *Node, depth: usize, box: b.Box(UnitType), value: T) !void {
             std.debug.assert(box.contains(self.mGetBox(value)));
 
             if (isLeaf(node.*)) {
@@ -131,8 +138,8 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
             } else {
                 const i = getQuadrant(box, self.mGetBox(value));
                 // Add the value in a child if the value is entirely contained in it
-                if (i != -1) {
-                    const ii: usize = @intCast(i);
+                if (i != Quadrant.None) {
+                    const ii: usize = @intCast(@intFromEnum(i));
                     std.debug.assert(node.children[ii] != null);
                     try self.add_value(node.children[ii].?, depth + 1, computeBox(box, i), value);
                 }
@@ -144,7 +151,7 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
         }
 
         //void split(Node* node, const Box<Float>& box)
-        fn split(self: Self, node: *Node, box: b.Box(unitType)) !void {
+        fn split(self: Self, node: *Node, box: b.Box(UnitType)) !void {
             //assert(node != nullptr);
             std.debug.assert(isLeaf(node.*)); // && "Only leaves can be split");
             // Create children
@@ -156,8 +163,8 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
             var newValues = std.ArrayListUnmanaged(T){}; // New values for this node
             for (node.values.items) |value| {
                 const i = getQuadrant(box, self.mGetBox(value));
-                if (i != -1) {
-                    const ii: usize = @intCast(i);
+                if (i != Quadrant.None) {
+                    const ii: usize = @intCast(@intFromEnum(i));
                     std.debug.assert(node.children[ii] != null);
                     try node.children[ii].?.values.append(self.allocator, value);
                 } else {
@@ -169,7 +176,7 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
         }
 
         //bool remove(Node* node, const Box<Float>& box, const T& value)
-        fn remove_value(self: *Self, node: *Node, box: b.Box(unitType), value: T) !bool {
+        fn remove_value(self: *Self, node: *Node, box: b.Box(UnitType), value: T) !bool {
             std.debug.assert(box.contains(self.mGetBox(value)));
             if (isLeaf(node.*)) {
                 // Remove the value from node
@@ -178,8 +185,8 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
             } else {
                 // Remove the value in a child if the value is entirely contained in it
                 const i = getQuadrant(box, self.mGetBox(value));
-                if (i != -1) {
-                    const ii: usize = @intCast(i);
+                if (i != Quadrant.None) {
+                    const ii: usize = @intCast(@intFromEnum(i));
                     std.debug.assert(node.children[ii] != null);
                     if (try self.remove_value(node.children[ii].?, computeBox(box, i), value)) {
                         return self.tryMerge(node);
@@ -244,7 +251,7 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
         }
 
         //void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, std::vector<T>& values) const
-        fn query_box(self: Self, node: Node, box: b.Box(unitType), queryBox: b.Box(unitType), values: *std.ArrayList(T)) !void {
+        fn query_box(self: Self, node: Node, box: b.Box(UnitType), queryBox: b.Box(UnitType), values: *std.ArrayList(T)) !void {
             //assert(node != nullptr);
             std.debug.assert(queryBox.intersects(box));
             for (node.values.items) |value| {
@@ -254,7 +261,7 @@ pub fn Quadtree(comptime T: type, comptime unitType: type) type {
             }
             if (!isLeaf(node)) {
                 for (0..node.children.len) |i| {
-                    const childBox = computeBox(box, @intCast(i));
+                    const childBox = computeBox(box, @enumFromInt(i));
                     if (queryBox.intersects(childBox)) {
                         try self.query_box(node.children[i].?.*, childBox, queryBox, values);
                     }
@@ -438,21 +445,21 @@ fn findAllIntersections(nodes: std.ArrayList(test_node), removed: std.ArrayList(
     return intersections;
 }
 
+fn test_GetBox(value: *const test_node) b.Box(f32) {
+    return value.box;
+}
+
+fn test_Equal(a: *const test_node, bb: *const test_node) bool {
+    return a.id == bb.id;
+}
+
 fn test_quadtree_add_and_query(n: usize) !void {
     const allocator = std.testing.allocator;
     const nodes = try generateRandomNodes(n, allocator);
     defer nodes.deinit();
 
     const box = b.Box(f32){ .left = 0, .top = 0, .width = 1, .height = 1 };
-    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, struct {
-        fn GetBox(value: *const test_node) b.Box(f32) {
-            return value.box;
-        }
-    }.GetBox, struct {
-        fn Equal(a: *const test_node, bb: *const test_node) bool {
-            return a.id == bb.id;
-        }
-    }.Equal);
+    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, test_GetBox, test_Equal);
     defer quadtree.deinit();
 
     for (nodes.items) |*node| {
@@ -502,15 +509,7 @@ fn test_quadtree_add_and_findAllIntersecions(n: usize) !void {
     defer nodes.deinit();
 
     const box = b.Box(f32){ .left = 0, .top = 0, .width = 1, .height = 1 };
-    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, struct {
-        fn GetBox(value: *const test_node) b.Box(f32) {
-            return value.box;
-        }
-    }.GetBox, struct {
-        fn Equal(a: *const test_node, bb: *const test_node) bool {
-            return a.id == bb.id;
-        }
-    }.Equal);
+    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, test_GetBox, test_Equal);
     defer quadtree.deinit();
 
     for (nodes.items) |*node| {
@@ -542,15 +541,7 @@ fn test_quadtree_add_remove_and_query(n: usize) !void {
     defer nodes.deinit();
 
     const box = b.Box(f32){ .left = 0, .top = 0, .width = 1, .height = 1 };
-    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, struct {
-        fn GetBox(value: *const test_node) b.Box(f32) {
-            return value.box;
-        }
-    }.GetBox, struct {
-        fn Equal(a: *const test_node, bb: *const test_node) bool {
-            return a.id == bb.id;
-        }
-    }.Equal);
+    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, test_GetBox, test_Equal);
     defer quadtree.deinit();
 
     for (nodes.items) |*node| {
@@ -607,15 +598,7 @@ fn test_quadtree_add_remove_and_find_all_intersections(n: usize) !void {
     defer nodes.deinit();
 
     const box = b.Box(f32){ .left = 0, .top = 0, .width = 1, .height = 1 };
-    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, struct {
-        fn GetBox(value: *const test_node) b.Box(f32) {
-            return value.box;
-        }
-    }.GetBox, struct {
-        fn Equal(a: *const test_node, bb: *const test_node) bool {
-            return a.id == bb.id;
-        }
-    }.Equal);
+    var quadtree = Quadtree(*const test_node, f32).init(allocator, box, test_GetBox, test_Equal);
     defer quadtree.deinit();
 
     for (nodes.items) |*node| {

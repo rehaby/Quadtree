@@ -5,20 +5,20 @@ pub fn Vector2(comptime T: type) type {
         x: T,
         y: T,
 
-        pub fn add(self: @This(), other: @This()) @This() {
+        pub fn add(self: Vector2(T), other: Vector2(T)) Vector2(T) {
             return Vector2(T){ .x = self.x + other.x, .y = self.y + other.y };
         }
 
-        pub fn plus_equal(self: @This(), other: @This()) void {
+        pub fn plus_equal(self: *Vector2(T), other: Vector2(T)) void {
             self.x = self.x + other.x;
             self.y = self.y + other.y;
         }
 
-        pub fn div(self: @This(), value: T) @This() {
+        pub fn div(self: Vector2(T), value: T) Vector2(T) {
             return Vector2(T){ .x = self.x / value, .y = self.y / value };
         }
 
-        pub fn div_equal(self: @This(), value: T) void {
+        pub fn div_equal(self: *Vector2(T), value: T) void {
             self.x = self.x / value;
             self.y = self.y / value;
         }
@@ -26,6 +26,7 @@ pub fn Vector2(comptime T: type) type {
 }
 
 test "vector add" {
+    std.testing.refAllDecls(Vector2(f64));
     const one = Vector2(f64){ .x = 1, .y = 2 };
     const two = Vector2(f64){ .x = 3, .y = 4 };
     const three = one.add(two);
