@@ -2,23 +2,24 @@ const std = @import("std");
 
 pub fn Vector2(comptime T: type) type {
     return struct {
+        const Self = @This();
         x: T,
         y: T,
 
-        pub fn add(self: Vector2(T), other: Vector2(T)) Vector2(T) {
-            return Vector2(T){ .x = self.x + other.x, .y = self.y + other.y };
+        pub fn add(self: Self, other: Self) Self {
+            return Self{ .x = self.x + other.x, .y = self.y + other.y };
         }
 
-        pub fn plus_equal(self: *Vector2(T), other: Vector2(T)) void {
+        pub fn plus_equal(self: *Self, other: Self) void {
             self.x = self.x + other.x;
             self.y = self.y + other.y;
         }
 
-        pub fn div(self: Vector2(T), value: T) Vector2(T) {
-            return Vector2(T){ .x = self.x / value, .y = self.y / value };
+        pub fn div(self: Self, value: T) Self {
+            return Self{ .x = self.x / value, .y = self.y / value };
         }
 
-        pub fn div_equal(self: *Vector2(T), value: T) void {
+        pub fn div_equal(self: *Self, value: T) void {
             self.x = self.x / value;
             self.y = self.y / value;
         }

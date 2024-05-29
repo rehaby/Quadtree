@@ -5,19 +5,23 @@ const b = @import("box.zig");
 pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
     return struct {
         const Self = @This();
+        const Vector2 = v.Vector2(UnitType);
+        const Box = b.Box(UnitType);
+        const Quadrant = enum(i8) { TopRight = 0, TopLeft = 1, BottomRight = 2, BottomLeft = 3, None = -1 };
+
         comptime Threshold: usize = 16,
         comptime MaxDepth: usize = 8,
 
         allocator: std.mem.Allocator,
 
-        mBox: b.Box(UnitType),
+        mBox: Box,
         mRoot: Node,
-        mGetBox: *const fn (T) b.Box(UnitType),
+        mGetBox: *const fn (T) Box,
         mEqual: *const fn (T, T) bool,
 
         pub const ValuePair = struct { T, T };
 
-        pub const Node = struct {
+        const Node = struct {
             children: [4]?*Node = .{ null, null, null, null },
             values: std.ArrayListUnmanaged(T),
 
@@ -32,9 +36,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
             }
         };
 
-        const Quadrant = enum(i8) { TopRight = 0, TopLeft = 1, BottomRight = 2, BottomLeft = 3, None = -1 };
-
-        pub fn init(allocator: std.mem.Allocator, box: b.Box(UnitType), GetBox: *const fn (T) b.Box(UnitType), Equal: *const fn (T, T) bool) Self {
+        pub fn init(allocator: std.mem.Allocator, box: Box, GetBox: *const fn (T) Box, Equal: *const fn (T, T) bool) Self {
             return Self{ .allocator = allocator, .mBox = box, .mGetBox = GetBox, .mEqual = Equal, .mRoot = Node{ .values = std.ArrayListUnmanaged(T){} } };
         }
 
@@ -50,7 +52,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
             _ = try self.remove_value(&self.mRoot, self.mBox, value);
         }
 
-        pub fn query(self: Self, box: b.Box(UnitType)) !std.ArrayList(T) {
+        pub fn query(self: Self, box: Box) !std.ArrayList(T) {
             var values = std.ArrayList(T).init(self.allocator);
             try self.query_box(self.mRoot, self.mBox, box, &values);
             return values;
@@ -68,7 +70,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
         }
 
         //Box<Float> computeBox(const Box<Float>& box, int i) const
-        fn computeBox(box: b.Box(UnitType), i: Quadrant) b.Box(UnitType) {
+        fn computeBox(box: Box, i: Quadrant) Box {
             std.debug.assert(@intFromEnum(Quadrant.TopRight) == 0);
             std.debug.assert(@intFromEnum(Quadrant.TopLeft) == 1);
             std.debug.assert(@intFromEnum(Quadrant.BottomRight) == 2);
@@ -78,19 +80,19 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
             const childSize = box.getSize().div(2.0);
             return switch (i) {
                 // North West
-                Quadrant.TopRight => b.Box(UnitType).fromVec(origin, childSize),
+                Quadrant.TopRight => Box.fromVec(origin, childSize),
                 // Norst East
-                Quadrant.TopLeft => b.Box(UnitType).fromVec(v.Vector2(UnitType){ .x = origin.x + childSize.x, .y = origin.y }, childSize),
+                Quadrant.TopLeft => Box.fromVec(Vector2{ .x = origin.x + childSize.x, .y = origin.y }, childSize),
                 // South West
-                Quadrant.BottomRight => b.Box(UnitType).fromVec(v.Vector2(UnitType){ .x = origin.x, .y = origin.y + childSize.y }, childSize),
+                Quadrant.BottomRight => Box.fromVec(Vector2{ .x = origin.x, .y = origin.y + childSize.y }, childSize),
                 // South East
-                Quadrant.BottomLeft => b.Box(UnitType).fromVec(origin.add(childSize), childSize),
+                Quadrant.BottomLeft => Box.fromVec(origin.add(childSize), childSize),
                 else => unreachable,
             };
         }
 
         //int getQuadrant(const Box<Float>& nodeBox, const Box<Float>& valueBox) const
-        fn getQuadrant(nodeBox: b.Box(UnitType), valueBox: b.Box(UnitType)) Quadrant {
+        fn getQuadrant(nodeBox: Box, valueBox: Box) Quadrant {
             const center = nodeBox.getCenter();
             // West
             if (valueBox.getRight() < center.x) {
@@ -123,7 +125,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
         }
 
         //void add(Node* node, std::size_t depth, const Box<Float>& box, const T& value)
-        fn add_value(self: Self, node: *Node, depth: usize, box: b.Box(UnitType), value: T) !void {
+        fn add_value(self: Self, node: *Node, depth: usize, box: Box, value: T) !void {
             std.debug.assert(box.contains(self.mGetBox(value)));
 
             if (isLeaf(node.*)) {
@@ -151,7 +153,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
         }
 
         //void split(Node* node, const Box<Float>& box)
-        fn split(self: Self, node: *Node, box: b.Box(UnitType)) !void {
+        fn split(self: Self, node: *Node, box: Box) !void {
             //assert(node != nullptr);
             std.debug.assert(isLeaf(node.*)); // && "Only leaves can be split");
             // Create children
@@ -176,7 +178,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
         }
 
         //bool remove(Node* node, const Box<Float>& box, const T& value)
-        fn remove_value(self: *Self, node: *Node, box: b.Box(UnitType), value: T) !bool {
+        fn remove_value(self: *Self, node: *Node, box: Box, value: T) !bool {
             std.debug.assert(box.contains(self.mGetBox(value)));
             if (isLeaf(node.*)) {
                 // Remove the value from node
@@ -251,7 +253,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
         }
 
         //void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, std::vector<T>& values) const
-        fn query_box(self: Self, node: Node, box: b.Box(UnitType), queryBox: b.Box(UnitType), values: *std.ArrayList(T)) !void {
+        fn query_box(self: Self, node: Node, box: Box, queryBox: Box, values: *std.ArrayList(T)) !void {
             //assert(node != nullptr);
             std.debug.assert(queryBox.intersects(box));
             for (node.values.items) |value| {

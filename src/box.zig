@@ -2,45 +2,47 @@ const v = @import("vector2.zig");
 
 pub fn Box(comptime T: type) type {
     return struct {
+        const Self = @This();
+        const Vector2 = v.Vector2(T);
         left: T,
         top: T,
         width: T,
         height: T,
 
-        pub fn makeZero() Box(T) {
-            return Box(T){ .left = 0, .top = 0, .width = 0, .height = 0 };
+        pub fn makeZero() Self {
+            return Self{ .left = 0, .top = 0, .width = 0, .height = 0 };
         }
 
-        pub fn fromVec(position: v.Vector2(T), size: v.Vector2(T)) Box(T) {
-            return Box(T){ .left = position.x, .top = position.y, .width = size.x, .height = size.y };
+        pub fn fromVec(position: Vector2, size: Vector2) Self {
+            return Self{ .left = position.x, .top = position.y, .width = size.x, .height = size.y };
         }
 
-        pub fn getRight(self: Box(T)) T {
+        pub fn getRight(self: Self) T {
             return self.left + self.width;
         }
 
-        pub fn getBottom(self: Box(T)) T {
+        pub fn getBottom(self: Self) T {
             return self.top + self.height;
         }
 
-        pub fn getTopLeft(self: Box(T)) v.Vector2(T) {
+        pub fn getTopLeft(self: Self) Vector2 {
             return v.Vector2(T){ .x = self.left, .y = self.top };
         }
 
-        pub fn getCenter(self: Box(T)) v.Vector2(T) {
+        pub fn getCenter(self: Self) Vector2 {
             return v.Vector2(T){ .x = (self.left + self.width) / 2, .y = (self.top + self.height) / 2 };
         }
 
-        pub fn getSize(self: Box(T)) v.Vector2(T) {
+        pub fn getSize(self: Self) Vector2 {
             return v.Vector2(T){ .x = self.width, .y = self.height };
         }
 
-        pub fn contains(self: Box(T), box: Box(T)) bool {
+        pub fn contains(self: Self, box: Self) bool {
             return self.left <= box.left and box.getRight() <= self.getRight() and
                 self.top <= box.top and box.getBottom() <= self.getBottom();
         }
 
-        pub fn intersects(self: Box(T), box: Box(T)) bool {
+        pub fn intersects(self: Self, box: Self) bool {
             return !(self.left >= box.getRight() or self.getRight() <= box.left or
                 self.top >= box.getBottom() or self.getBottom() <= box.top);
         }
