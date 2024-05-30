@@ -7,7 +7,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
         const Self = @This();
         const Vector2 = v.Vector2(UnitType);
         const Box = b.Box(UnitType);
-        const Quadrant = enum(i8) { TopRight = 0, TopLeft = 1, BottomRight = 2, BottomLeft = 3, None = -1 };
+        const Quadrant = enum(i8) { TopRight = 0, TopLeft = 1, BottomRight = 2, BottomLeft = 3, None = 5 };
 
         comptime Threshold: usize = 16,
         comptime MaxDepth: usize = 8,
@@ -124,6 +124,16 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
             else return Quadrant.None;
         }
 
+        fn getChild(node: *Node, quadrant: Quadrant) ?*Node {
+            return switch (quadrant) {
+                Quadrant.TopRight => node.children[0],
+                Quadrant.TopLeft => node.children[1],
+                Quadrant.BottomRight => node.children[2],
+                Quadrant.BottomLeft => node.children[3],
+                Quadrant.None => null,
+            };
+        }
+
         //void add(Node* node, std::size_t depth, const Box<Float>& box, const T& value)
         fn add_value(self: Self, node: *Node, depth: usize, box: Box, value: T) !void {
             std.debug.assert(box.contains(self.mGetBox(value)));
@@ -139,11 +149,10 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
                 }
             } else {
                 const i = getQuadrant(box, self.mGetBox(value));
+                const child = getChild(node, i);
                 // Add the value in a child if the value is entirely contained in it
-                if (i != Quadrant.None) {
-                    const ii: usize = @intCast(@intFromEnum(i));
-                    std.debug.assert(node.children[ii] != null);
-                    try self.add_value(node.children[ii].?, depth + 1, computeBox(box, i), value);
+                if (child) |kid| {
+                    try self.add_value(kid, depth + 1, computeBox(box, i), value);
                 }
                 // Otherwise, we add the value in the current node
                 else {
@@ -165,10 +174,9 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
             var newValues = std.ArrayListUnmanaged(T){}; // New values for this node
             for (node.values.items) |value| {
                 const i = getQuadrant(box, self.mGetBox(value));
-                if (i != Quadrant.None) {
-                    const ii: usize = @intCast(@intFromEnum(i));
-                    std.debug.assert(node.children[ii] != null);
-                    try node.children[ii].?.values.append(self.allocator, value);
+                const child = getChild(node, i);
+                if (child) |kid| {
+                    try kid.values.append(self.allocator, value);
                 } else {
                     try newValues.append(self.allocator, value);
                 }
@@ -187,10 +195,9 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type) type {
             } else {
                 // Remove the value in a child if the value is entirely contained in it
                 const i = getQuadrant(box, self.mGetBox(value));
-                if (i != Quadrant.None) {
-                    const ii: usize = @intCast(@intFromEnum(i));
-                    std.debug.assert(node.children[ii] != null);
-                    if (try self.remove_value(node.children[ii].?, computeBox(box, i), value)) {
+                const child = getChild(node, i);
+                if (child) |kid| {
+                    if (try self.remove_value(kid, computeBox(box, i), value)) {
                         return self.tryMerge(node);
                     }
                 }
