@@ -6,7 +6,7 @@ pub fn Vector2(comptime T: type) type {
         x: T,
         y: T,
 
-        pub fn add(self: Self, other: Self) Self {
+        pub fn add(self: *const Self, other: Self) Self {
             return Self{ .x = self.x + other.x, .y = self.y + other.y };
         }
 
@@ -15,7 +15,7 @@ pub fn Vector2(comptime T: type) type {
             self.y = self.y + other.y;
         }
 
-        pub fn div(self: Self, value: T) Self {
+        pub fn div(self: *const Self, value: T) Self {
             return Self{ .x = self.x / value, .y = self.y / value };
         }
 

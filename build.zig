@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) void {
     });
 
     _ = b.addModule("Quadtree", .{
-        .root_source_file = .{ .path = "src/quadtree.zig" },
+        .root_source_file = b.path("src/quadtree.zig"),
     });
 
     // This declares intent for the library to be installed into the standard
