@@ -756,3 +756,34 @@ test "quadtree add remove and find all intersections" {
 
     try test_quadtree_add_remove_and_find_all_intersections(1000);
 }
+
+// This test shows how the bug in `Box.getCenter` will cause the quadtree to try
+// to add new values into the wrong quadrant after the first subdivision.
+test "quadtree should add values into correct subdivided quadtrants" {
+    const TestQuadtree = Quadtree(*const test_node, f32, void);
+
+    const ally = std.testing.allocator;
+    const dimensions = b.Box(f32){ .left = 0, .top = 0, .width = 200, .height = 200 };
+    var quadtree = try TestQuadtree.init(ally, {}, dimensions, test_GetBox, test_Equal);
+    defer quadtree.deinit();
+
+    // Make sure to spawn Threshold + 1 boxes to force the quadtree to subdivide.
+    const node_count = TestQuadtree.Threshold + 1;
+    var nodes: [node_count]test_node = undefined;
+
+    const node_size = 10;
+    for (0..node_count) |i| {
+        nodes[i] = test_node{
+            .id = i + 1,
+            .box = b.Box(f32){
+                // Boxes must spawn in the top-left corner of the bottom right
+                // quadrant for the error to occur.
+                .left = 100,
+                .top = 100,
+                .width = node_size,
+                .height = node_size,
+            },
+        };
+        quadtree.add(&nodes[i]) catch unreachable;
+    }
+}
