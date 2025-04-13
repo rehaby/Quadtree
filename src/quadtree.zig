@@ -433,7 +433,7 @@ fn test_valuePair_less_than(
 
 //std::vector<Node> generateRandomNodes(std::size_t n)
 fn generateRandomNodes(n: usize, allocator: std.mem.Allocator) !std.ArrayList(test_node) {
-    var generator = std.rand.DefaultPrng.init(0); //TODO seed
+    var generator = std.Random.DefaultPrng.init(0);
     //const originDistribution = generator.random().
     //auto generator = std::default_random_engine();
     //auto originDistribution = std::uniform_real_distribution(0.0f, 1.0f);
@@ -455,7 +455,7 @@ fn generateRandomNodes(n: usize, allocator: std.mem.Allocator) !std.ArrayList(te
 }
 
 fn generateRandomRemoved(n: usize, allocator: std.mem.Allocator) !std.ArrayList(bool) {
-    var generator = std.rand.DefaultPrng.init(0); //TODO seed
+    var generator = std.Random.DefaultPrng.init(0); //TODO seed
     var removed = std.ArrayList(bool).init(allocator);
     try removed.resize(n);
 
