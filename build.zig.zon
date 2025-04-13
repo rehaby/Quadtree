@@ -58,13 +58,10 @@
         // better to explicitly list the files and directories instead, to insure that
         // fetching from tarballs, file system paths, and version control all result
         // in the same contents hash.
-        "buid.zig",
+        "build.zig",
         "build.zig.zon",
         "LICENSE",
         "README.md",
-        "src/quadtree.zig",
-        "src/box.zig",
-        "src/vector2.zig",
-        "src/test.zig",
+        "src",
     },
 }

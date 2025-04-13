@@ -29,7 +29,7 @@ pub fn Quadtree(comptime T: type, comptime UnitType: type, comptime Context: typ
 
         pub const ValuePair = struct { T, T };
 
-        const Node = struct {
+        pub const Node = struct {
             children: [4]?*Node = .{ null, null, null, null },
             values: std.ArrayListUnmanaged(T),
             box: Box,
