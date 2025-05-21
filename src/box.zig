@@ -44,8 +44,8 @@ pub fn Box(comptime T: type) type {
 
         pub fn getCenter(self: *const Self) Vector2 {
             return v.Vector2(T){
-                .x = (self.left + self.width) / 2,
-                .y = (self.top + self.height) / 2,
+                .x = self.left + self.width / 2,
+                .y = self.top + self.height / 2,
             };
         }
 
